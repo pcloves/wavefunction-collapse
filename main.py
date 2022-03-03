@@ -10,7 +10,6 @@ DIRS = [UP, DOWN, LEFT, RIGHT]
 
 
 class CompatibilityOracle(object):
-
     """The CompatibilityOracle class is responsible for telling us
     which combinations of tiles and directions are compatible. It's
     so simple that it perhaps doesn't need to be a class, but I think
@@ -25,7 +24,6 @@ class CompatibilityOracle(object):
 
 
 class Wavefunction(object):
-
     """The Wavefunction class is responsible for storing which tiles
     are permitted and forbidden in each location of an output image.
     """
@@ -85,7 +83,7 @@ class Wavefunction(object):
         this method raises an exception.
         """
         opts = self.get(co_ords)
-        assert(len(opts) == 1)
+        assert (len(opts) == 1)
         return next(iter(opts))
 
     def get_all_collapsed(self):
@@ -101,7 +99,7 @@ class Wavefunction(object):
         for x in range(width):
             row = []
             for y in range(height):
-                row.append(self.get_collapsed((x,y)))
+                row.append(self.get_collapsed((x, y)))
             collapsed.append(row)
 
         return collapsed
@@ -121,7 +119,6 @@ class Wavefunction(object):
 
         return math.log(sum_of_weights) - (sum_of_weight_log_weights / sum_of_weights)
 
-
     def is_fully_collapsed(self):
         """Returns true if every element in Wavefunction is fully
         collapsed, and false otherwise.
@@ -131,6 +128,7 @@ class Wavefunction(object):
                 if len(sq) > 1:
                     return False
 
+        # 走到这里说明每一个tile的候选列表都是1，那么代表波函数完全坍缩
         return True
 
     def collapse(self, co_ords):
@@ -142,7 +140,9 @@ class Wavefunction(object):
         This method mutates the Wavefunction, and does not return anything.
         """
         x, y = co_ords
+        # opts为当前坐标的候选tile列表
         opts = self.coefficients[x][y]
+        # 求出候选tile对应的权重（valid_weights的key和opts一一对应）
         valid_weights = {tile: weight for tile, weight in self.weights.items() if tile in opts}
 
         total_weights = sum(valid_weights.values())
@@ -155,6 +155,7 @@ class Wavefunction(object):
                 chosen = tile
                 break
 
+        # 根据权重随机，算出x,y坐标下的tile
         self.coefficients[x][y] = set(chosen)
 
     def constrain(self, co_ords, forbidden_tile):
@@ -168,7 +169,6 @@ class Wavefunction(object):
 
 
 class Model(object):
-
     """The Model class is responsible for orchestrating the
     Wavefunction Collapse algorithm.
     """
@@ -193,10 +193,13 @@ class Model(object):
         Algorithm.
         """
         # 1. Find the co-ordinates of minimum entropy
+        # 1. 查找熵最小的坐标
         co_ords = self.min_entropy_co_ords()
         # 2. Collapse the wavefunction at these co-ordinates
+        # 2. 确定指定坐标下的唯一tile（也即波函数塌缩）
         self.wavefunction.collapse(co_ords)
         # 3. Propagate the consequences of this collapse
+        # 3. 传播变化值
         self.propagate(co_ords)
 
     def propagate(self, co_ords):
@@ -213,27 +216,36 @@ class Model(object):
         while len(stack) > 0:
             cur_coords = stack.pop()
             # Get the set of all possible tiles at the current location
+            # 获取当前坐标下所有候选的tile
             cur_possible_tiles = self.wavefunction.get(cur_coords)
 
             # Iterate through each location immediately adjacent to the
             # current location.
+            # 遍历当前坐下所有的有效邻居的坐标
             for d in valid_dirs(cur_coords, self.output_size):
+                # 计算d朝向的邻居坐标
                 other_coords = (cur_coords[0] + d[0], cur_coords[1] + d[1])
 
                 # Iterate through each possible tile in the adjacent location's
                 # wavefunction.
+                # 遍历邻居的候选tile列表中的每一个tile
                 for other_tile in set(self.wavefunction.get(other_coords)):
                     # Check whether the tile is compatible with any tile in
                     # the current location's wavefunction.
+                    # other_tile_is_possible为true就代表该邻居至少有一个候选tile可以和当前tile进行连接
                     other_tile_is_possible = any([
+                        # check为true代表当前tile和该邻居的该候选tile（other_tile）之前有连接
                         self.compatibility_oracle.check(cur_tile, other_tile, d) for cur_tile in cur_possible_tiles
                     ])
                     # If the tile is not compatible with any of the tiles in
                     # the current location's wavefunction then it is impossible
                     # for it to ever get chosen. We therefore remove it from
                     # the other location's wavefunction.
+                    # 条件不满足就代表该候选tile和当前tile中的任何候选tile都无法连接！
                     if not other_tile_is_possible:
+                        # 把候选tile从邻居的候选列表中删除
                         self.wavefunction.constrain(other_coords, other_tile)
+                        # 因为邻居的候选tile列表发生了变化，那需要将邻居的这个变化继续传播，所以将邻居的坐标加入栈
                         stack.append(other_coords)
 
     def min_entropy_co_ords(self):
@@ -246,7 +258,7 @@ class Model(object):
         width, height = self.output_size
         for x in range(width):
             for y in range(height):
-                if len(self.wavefunction.get((x,y))) == 1:
+                if len(self.wavefunction.get((x, y))) == 1:
                     continue
 
                 entropy = self.wavefunction.shannon_entropy((x, y))
@@ -285,9 +297,9 @@ def valid_dirs(cur_co_ord, matrix_size):
     dirs = []
 
     if x > 0: dirs.append(LEFT)
-    if x < width-1: dirs.append(RIGHT)
+    if x < width - 1: dirs.append(RIGHT)
     if y > 0: dirs.append(DOWN)
-    if y < height-1: dirs.append(UP)
+    if y < height - 1: dirs.append(UP)
 
     return dirs
 
@@ -312,6 +324,7 @@ def parse_example_matrix(matrix):
     matrix_width = len(matrix)
     matrix_height = len(matrix[0])
 
+    # key为tile，value为matrix样本中该tile出现的次数
     weights = {}
 
     for x, row in enumerate(matrix):
@@ -320,33 +333,39 @@ def parse_example_matrix(matrix):
                 weights[cur_tile] = 0
             weights[cur_tile] += 1
 
-            for d in valid_dirs((x,y), (matrix_width, matrix_height)):
-                other_tile = matrix[x+d[0]][y+d[1]]
+            for d in valid_dirs((x, y), (matrix_width, matrix_height)):
+                # d为朝向，other_tile为该朝向对应的tile
+                other_tile = matrix[x + d[0]][y + d[1]]
+                # 建立两个tile之间的连接
                 compatibilities.add((cur_tile, other_tile, d))
 
     return compatibilities, weights
 
 
 input_matrix = [
-    ['L','L','L','L'],
-    ['L','L','L','L'],
-    ['L','L','L','L'],
-    ['L','C','C','L'],
-    ['C','S','S','C'],
-    ['S','S','S','S'],
-    ['S','S','S','S'],
+    ['L', 'L', 'L', 'L'],
+    ['L', 'L', 'L', 'L'],
+    ['L', 'L', 'L', 'L'],
+    ['L', 'C', 'C', 'L'],
+    ['C', 'S', 'S', 'C'],
+    ['S', 'S', 'S', 'S'],
+    ['S', 'S', 'S', 'S'],
 ]
 input_matrix2 = [
-    ['A','A','A','A'],
-    ['A','A','A','A'],
-    ['A','A','A','A'],
-    ['A','C','C','A'],
-    ['C','B','B','C'],
-    ['C','B','B','C'],
-    ['A','C','C','A'],
+    ['A', 'A', 'A', 'A'],
+    ['A', 'A', 'A', 'A'],
+    ['A', 'A', 'A', 'A'],
+    ['A', 'C', 'C', 'A'],
+    ['C', 'B', 'B', 'C'],
+    ['C', 'B', 'B', 'C'],
+    ['A', 'C', 'C', 'A'],
 ]
 
+# 做两件事：
+# 1、计算每种tile的权重（也即出现的次数），然后放到名为weights的dict中（key为tile，value为权重）；
+# 2、构建tile连接的set集合，集合内每个元素的格式为：(tile1, tile2, direction)的tuple
 compatibilities, weights = parse_example_matrix(input_matrix)
+# CompatibilityOracle其实就是根据样本matrix算出来的tile连接规则集合
 compatibility_oracle = CompatibilityOracle(compatibilities)
 model = Model((10, 50), weights, compatibility_oracle)
 output = model.run()
